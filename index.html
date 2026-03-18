@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pomodoro Dial</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <div class="timer-card" id="timerCard">
+      <div class="status-light" id="lamp"></div>
+
+      <div class="dial-wrap">
+        <div class="dial" id="dial">
+          <div class="wedge" id="wedge"></div>
+          <div class="ticks" id="ticks"></div>
+          <div class="labels" id="labels"></div>
+          <div class="knob" id="knob"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="customMenu" class="custom-menu">
+    <div id="menuTime" class="menu-time">25:00</div>
+
+    <button id="menuStart" class="menu-item">시작</button>
+    <button id="menuPause" class="menu-item">일시정지</button>
+    <button id="menuReset" class="menu-item">리셋</button>
+
+    <div class="menu-separator"></div>
+
+    <button id="menuAlwaysOnTop" class="menu-item">항상 위 해제</button>
+
+    <div class="menu-separator"></div>
+
+    <button id="menuQuit" class="menu-item">종료</button>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
