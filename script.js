@@ -8,10 +8,17 @@ const timerCard = document.getElementById("timerCard");
 const customMenu = document.getElementById("customMenu");
 const menuTime = document.getElementById("menuTime");
 const menuAlwaysOnTop = document.getElementById("menuAlwaysOnTop");
-const menuStart = document.getElementById("menuStart");
-const menuPause = document.getElementById("menuPause");
 const menuReset = document.getElementById("menuReset");
 const menuQuit = document.getElementById("menuQuit");
+const menuTodo = document.getElementById("menuTodo");
+
+const todoPanel = document.getElementById("todoPanel");
+const todoList = document.getElementById("todoList");
+const todoDate = document.getElementById("todoDate");
+const addTodoBtn = document.getElementById("addTodoBtn");
+const todoCloseBtn = document.getElementById("todoCloseBtn");
+
+const timerToggle = document.getElementById("timerToggle");
 
 let isDragging = false;
 let isRunning = false;
@@ -20,6 +27,188 @@ let blinkId = null;
 
 let savedMinutes = 25;
 let totalSeconds = 25 * 60;
+
+const TODO_STORAGE_KEY = "pomodoro_todos_by_date";
+const TODO_UI_STORAGE_KEY = "pomodoro_todo_ui";
+
+let todoData = loadTodoData();
+let todoPanelOpen = false;
+
+/* ---------------- Todo ---------------- */
+
+function getTodayString() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function loadTodoData() {
+  try {
+    const raw = localStorage.getItem(TODO_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveTodoData() {
+  localStorage.setItem(TODO_STORAGE_KEY, JSON.stringify(todoData));
+}
+
+function loadTodoUIState() {
+  try {
+    const raw = localStorage.getItem(TODO_UI_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return {
+      isOpen: Boolean(parsed?.isOpen),
+      selectedDate: parsed?.selectedDate || getTodayString()
+    };
+  } catch {
+    return {
+      isOpen: false,
+      selectedDate: getTodayString()
+    };
+  }
+}
+
+function saveTodoUIState() {
+  localStorage.setItem(
+    TODO_UI_STORAGE_KEY,
+    JSON.stringify({
+      isOpen: todoPanelOpen,
+      selectedDate: todoDate.value || getTodayString()
+    })
+  );
+}
+
+function createTodoId() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+  return `todo-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function createEmptyTodo() {
+  return {
+    id: createTodoId(),
+    text: "",
+    checked: false
+  };
+}
+
+function ensureTodoDateExists(dateKey) {
+  if (!todoData[dateKey] || !Array.isArray(todoData[dateKey])) {
+    todoData[dateKey] = [createEmptyTodo()];
+    saveTodoData();
+  }
+
+  if (todoData[dateKey].length === 0) {
+    todoData[dateKey].push(createEmptyTodo());
+    saveTodoData();
+  }
+}
+
+function getSelectedDateKey() {
+  return todoDate.value || getTodayString();
+}
+
+function renderTodos() {
+  const dateKey = getSelectedDateKey();
+  ensureTodoDateExists(dateKey);
+
+  const items = todoData[dateKey];
+  todoList.innerHTML = "";
+
+  items.forEach((item) => {
+    const row = document.createElement("div");
+    row.className = "todo-item";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "todo-checkbox";
+    checkbox.checked = item.checked;
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "todo-text";
+    input.placeholder = "할 일을 입력하세요";
+    input.value = item.text || "";
+
+    if (item.checked) {
+      input.classList.add("completed");
+    }
+
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "todo-remove-btn";
+    removeBtn.textContent = "×";
+    removeBtn.title = "삭제";
+
+    checkbox.addEventListener("change", () => {
+      item.checked = checkbox.checked;
+      input.classList.toggle("completed", item.checked);
+      saveTodoData();
+    });
+
+    input.addEventListener("input", () => {
+      item.text = input.value;
+      saveTodoData();
+    });
+
+    removeBtn.addEventListener("click", () => {
+      const currentItems = todoData[dateKey] || [];
+      const nextItems = currentItems.filter((todo) => todo.id !== item.id);
+      todoData[dateKey] = nextItems.length > 0 ? nextItems : [createEmptyTodo()];
+      saveTodoData();
+      renderTodos();
+    });
+
+    row.appendChild(checkbox);
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+    todoList.appendChild(row);
+  });
+}
+
+function addTodoItem() {
+  const dateKey = getSelectedDateKey();
+  ensureTodoDateExists(dateKey);
+  todoData[dateKey].push(createEmptyTodo());
+  saveTodoData();
+  renderTodos();
+
+  const inputs = todoList.querySelectorAll(".todo-text");
+  if (inputs.length > 0) {
+    inputs[inputs.length - 1].focus();
+  }
+}
+
+async function setTodoPanelOpen(open) {
+  todoPanelOpen = open;
+  document.body.classList.toggle("todo-open", open);
+  todoPanel.setAttribute("aria-hidden", open ? "false" : "true");
+  menuTodo.textContent = open ? "Todo List 닫기" : "Todo List 열기";
+  saveTodoUIState();
+
+  if (window.electronAPI?.setTodoWindowOpen) {
+    await window.electronAPI.setTodoWindowOpen(open);
+  }
+
+  setTimeout(() => {
+    rebuildDial();
+  }, 220);
+}
+
+function initTodoUI() {
+  const uiState = loadTodoUIState();
+  todoDate.value = uiState.selectedDate || getTodayString();
+  ensureTodoDateExists(todoDate.value);
+  renderTodos();
+  setTodoPanelOpen(uiState.isOpen);
+}
+
+/* ---------------- Timer ---------------- */
 
 function getDialSize() {
   return dial.offsetWidth;
@@ -34,7 +223,10 @@ function getTickRadius() {
 }
 
 function getLabelRadius() {
-  return getDialSize() * 0.52;
+  const size = getDialSize();
+  if (size <= 220) return size * 0.44;
+  if (size <= 300) return size * 0.465;
+  return size * 0.485;
 }
 
 function getPointerLength() {
@@ -43,8 +235,10 @@ function getPointerLength() {
 
 function updateDialSize() {
   const cardRect = timerCard.getBoundingClientRect();
-  const availableWidth = cardRect.width - 36;
-  const availableHeight = cardRect.height - 36;
+  const paddingX = 52;
+  const paddingY = 52;
+  const availableWidth = cardRect.width - paddingX;
+  const availableHeight = cardRect.height - paddingY;
   const dialSize = Math.max(140, Math.min(availableWidth, availableHeight));
   timerCard.style.setProperty("--dial-size", `${dialSize}px`);
 }
@@ -63,7 +257,8 @@ function updateMenuTime() {
 }
 
 function updatePointerByMinutes(min) {
-  const angle = (min / 60) * 360;
+  const safeMin = Math.max(0, min);
+  const angle = (safeMin / 60) * 360;
   const pointerLength = getPointerLength();
 
   dial.style.setProperty("--pointer-angle", `${angle}deg`);
@@ -72,7 +267,7 @@ function updatePointerByMinutes(min) {
   wedge.style.background = `conic-gradient(
     from 0deg,
     #8fb5f6 0deg,
-    #6f9df0 ${Math.max(angle * 0.45, 1)}deg,
+    #6f9df0 ${Math.max(angle * 0.45, safeMin > 0 ? 1 : 0)}deg,
     #5f8fe8 ${angle}deg,
     transparent ${angle}deg 360deg
   )`;
@@ -131,7 +326,8 @@ function createLabels() {
 
   const center = getCenter();
   const labelRadius = getLabelRadius();
-  const fontSize = Math.max(12, getDialSize() * 0.055);
+  const dialSize = getDialSize();
+  const fontSize = Math.max(9, Math.min(18, dialSize * 0.04));
   const values = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 
   values.forEach((value) => {
@@ -177,22 +373,32 @@ function startBlinking() {
   stopBlinking();
 
   let isOn = false;
-  let count = 0;
+  let toggleCount = 0;
+  const maxToggleCount = 20;
 
   blinkId = setInterval(() => {
     isOn = !isOn;
 
     if (isOn) {
       lamp.style.background = "#ff2d2d";
-      lamp.style.boxShadow = "0 0 18px rgba(255, 45, 45, 0.9)";
+      lamp.style.boxShadow = "0 0 22px rgba(255, 45, 45, 0.95)";
     } else {
       lamp.style.background = "#d6d6d6";
       lamp.style.boxShadow = "0 0 0 rgba(255, 0, 0, 0)";
     }
 
-    count++;
-    if (count >= 30) stopBlinking();
-  }, 1000);
+    toggleCount++;
+
+    if (toggleCount >= maxToggleCount) {
+      stopBlinking();
+    }
+  }, 350);
+}
+
+function updateTimerToggleUI() {
+  timerToggle.classList.toggle("on", isRunning);
+  timerToggle.classList.toggle("off", !isRunning);
+  timerToggle.querySelector(".toggle-text").textContent = isRunning ? "ON" : "OFF";
 }
 
 function startTimer() {
@@ -200,6 +406,7 @@ function startTimer() {
 
   stopBlinking();
   isRunning = true;
+  updateTimerToggleUI();
 
   timerId = setInterval(() => {
     if (totalSeconds > 0) {
@@ -210,6 +417,7 @@ function startTimer() {
       clearInterval(timerId);
       timerId = null;
       isRunning = false;
+      updateTimerToggleUI();
       updatePointerByMinutes(0);
       updateMenuTime();
       startBlinking();
@@ -221,6 +429,7 @@ function pauseTimer() {
   clearInterval(timerId);
   timerId = null;
   isRunning = false;
+  updateTimerToggleUI();
   updateMenuTime();
 }
 
@@ -228,16 +437,25 @@ function resetTimer() {
   clearInterval(timerId);
   timerId = null;
   isRunning = false;
-
+  updateTimerToggleUI();
   stopBlinking();
   totalSeconds = savedMinutes * 60;
   updatePointerByMinutes(savedMinutes);
   updateMenuTime();
 }
 
+function toggleTimerRunning() {
+  if (isRunning) {
+    pauseTimer();
+  } else {
+    startTimer();
+  }
+}
+
+/* ---------------- Menu ---------------- */
+
 async function syncAlwaysOnTopLabel() {
   if (!window.electronAPI?.getAlwaysOnTop) return;
-
   const alwaysOnTop = await window.electronAPI.getAlwaysOnTop();
   menuAlwaysOnTop.textContent = alwaysOnTop ? "항상 위 해제" : "항상 위 켜기";
 }
@@ -249,7 +467,6 @@ function hideCustomMenu() {
 function showCustomMenu(x, y) {
   updateMenuTime();
   syncAlwaysOnTopLabel();
-
   customMenu.classList.add("show");
 
   const rect = customMenu.getBoundingClientRect();
@@ -272,6 +489,8 @@ function showCustomMenu(x, y) {
   customMenu.style.left = `${left}px`;
   customMenu.style.top = `${top}px`;
 }
+
+/* ---------------- Events ---------------- */
 
 dial.addEventListener("mousedown", (event) => {
   event.stopPropagation();
@@ -323,18 +542,17 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-menuStart.addEventListener("click", () => {
-  startTimer();
-  hideCustomMenu();
-});
-
-menuPause.addEventListener("click", () => {
-  pauseTimer();
-  hideCustomMenu();
+timerToggle.addEventListener("click", () => {
+  toggleTimerRunning();
 });
 
 menuReset.addEventListener("click", () => {
   resetTimer();
+  hideCustomMenu();
+});
+
+menuTodo.addEventListener("click", async () => {
+  await setTodoPanelOpen(!todoPanelOpen);
   hideCustomMenu();
 });
 
@@ -352,8 +570,29 @@ menuQuit.addEventListener("click", () => {
   }
 });
 
+todoCloseBtn.addEventListener("click", async () => {
+  await setTodoPanelOpen(false);
+});
+
+addTodoBtn.addEventListener("click", () => {
+  addTodoItem();
+});
+
+todoDate.addEventListener("change", () => {
+  ensureTodoDateExists(getSelectedDateKey());
+  saveTodoUIState();
+  renderTodos();
+});
+
 window.addEventListener("resize", rebuildDial);
+
+/* ---------------- Init ---------------- */
+
+const initialTodoUI = loadTodoUIState();
+todoDate.value = initialTodoUI.selectedDate || getTodayString();
 
 rebuildDial();
 updateUIFromMinutes(25);
 updateMenuTime();
+initTodoUI();
+updateTimerToggleUI();

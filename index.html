@@ -9,7 +9,21 @@
 <body>
   <div class="app-shell">
     <div class="timer-card" id="timerCard">
-      <div class="status-light" id="lamp"></div>
+      <div class="top-controls">
+        <button
+          id="timerToggle"
+          class="timer-toggle off"
+          title="타이머 시작/일시정지"
+          aria-label="타이머 시작/일시정지"
+        >
+          <span class="toggle-track">
+            <span class="toggle-knob"></span>
+          </span>
+          <span class="toggle-text">OFF</span>
+        </button>
+
+        <div class="status-light" id="lamp"></div>
+      </div>
 
       <div class="dial-wrap">
         <div class="dial" id="dial">
@@ -20,14 +34,34 @@
         </div>
       </div>
     </div>
+
+    <aside class="todo-panel" id="todoPanel" aria-hidden="true">
+      <div class="todo-panel-inner">
+        <div class="todo-header">
+          <div class="todo-title-row">
+            <span class="todo-title">Todo</span>
+            <button id="todoCloseBtn" class="todo-icon-btn" title="닫기">×</button>
+          </div>
+
+          <div class="todo-top-actions">
+            <input type="date" id="todoDate" class="todo-date-input" />
+            <button id="addTodoBtn" class="add-todo-btn small">+ Add</button>
+          </div>
+        </div>
+
+        <div class="todo-list" id="todoList"></div>
+      </div>
+    </aside>
   </div>
 
   <div id="customMenu" class="custom-menu">
     <div id="menuTime" class="menu-time">25:00</div>
 
-    <button id="menuStart" class="menu-item">시작</button>
-    <button id="menuPause" class="menu-item">일시정지</button>
     <button id="menuReset" class="menu-item">리셋</button>
+
+    <div class="menu-separator"></div>
+
+    <button id="menuTodo" class="menu-item">Todo List 열기</button>
 
     <div class="menu-separator"></div>
 
