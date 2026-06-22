@@ -47,6 +47,15 @@
 | `style.css` | 다이얼/카드/메뉴/Todo 패널 스타일 |
 | `script.js` | 다이얼 렌더링, 타이머 동작, Todo 관리, 메뉴/이벤트 처리 |
 
+## 다운로드 (실행 파일)
+
+직접 빌드하지 않고 바로 사용하려면 [Releases](https://github.com/ggaeun324-wq/pomodoro-app/releases) 페이지에서 Windows 실행 파일을 받을 수 있습니다.
+
+- **최신 버전 (v1.0.1)**: [`exe.zip`](https://github.com/ggaeun324-wq/pomodoro-app/releases/download/v1.0.1/exe.zip) 다운로드
+- 압축을 풀고 안에 있는 설치 파일(`.exe`)을 실행하면 됩니다.
+
+> 빌드 산출물(`.exe`, `dist/`)은 저장소 소스에는 포함되지 않으며, GitHub **Releases**에 업로드되어 있습니다.
+
 ## 시작하기
 
 ### 요구 사항
